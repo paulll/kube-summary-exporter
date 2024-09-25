@@ -34,6 +34,7 @@ func collectSummaryMetrics(summary *stats.Summary, registry *prometheus.Registry
 			Help:      "Number of available Inodes for logs",
 		},
 			[]string{
+				"node",
 				"pod",
 				"namespace",
 				"name",
@@ -45,6 +46,7 @@ func collectSummaryMetrics(summary *stats.Summary, registry *prometheus.Registry
 			Help:      "Number of Inodes for logs",
 		},
 			[]string{
+				"node",
 				"pod",
 				"namespace",
 				"name",
@@ -56,6 +58,7 @@ func collectSummaryMetrics(summary *stats.Summary, registry *prometheus.Registry
 			Help:      "Number of used Inodes for logs",
 		},
 			[]string{
+				"node",
 				"pod",
 				"namespace",
 				"name",
@@ -67,6 +70,7 @@ func collectSummaryMetrics(summary *stats.Summary, registry *prometheus.Registry
 			Help:      "Number of bytes that aren't consumed by the container logs",
 		},
 			[]string{
+				"node",
 				"pod",
 				"namespace",
 				"name",
@@ -78,6 +82,7 @@ func collectSummaryMetrics(summary *stats.Summary, registry *prometheus.Registry
 			Help:      "Number of bytes that can be consumed by the container logs",
 		},
 			[]string{
+				"node",
 				"pod",
 				"namespace",
 				"name",
@@ -89,6 +94,7 @@ func collectSummaryMetrics(summary *stats.Summary, registry *prometheus.Registry
 			Help:      "Number of bytes that are consumed by the container logs",
 		},
 			[]string{
+				"node",
 				"pod",
 				"namespace",
 				"name",
@@ -100,6 +106,7 @@ func collectSummaryMetrics(summary *stats.Summary, registry *prometheus.Registry
 			Help:      "Number of available Inodes",
 		},
 			[]string{
+				"node",
 				"pod",
 				"namespace",
 				"name",
@@ -111,6 +118,7 @@ func collectSummaryMetrics(summary *stats.Summary, registry *prometheus.Registry
 			Help:      "Number of Inodes",
 		},
 			[]string{
+				"node",
 				"pod",
 				"namespace",
 				"name",
@@ -122,6 +130,7 @@ func collectSummaryMetrics(summary *stats.Summary, registry *prometheus.Registry
 			Help:      "Number of used Inodes",
 		},
 			[]string{
+				"node",
 				"pod",
 				"namespace",
 				"name",
@@ -133,6 +142,7 @@ func collectSummaryMetrics(summary *stats.Summary, registry *prometheus.Registry
 			Help:      "Number of bytes that aren't consumed by the container",
 		},
 			[]string{
+				"node",
 				"pod",
 				"namespace",
 				"name",
@@ -144,6 +154,7 @@ func collectSummaryMetrics(summary *stats.Summary, registry *prometheus.Registry
 			Help:      "Number of bytes that can be consumed by the container",
 		},
 			[]string{
+				"node",
 				"pod",
 				"namespace",
 				"name",
@@ -155,6 +166,7 @@ func collectSummaryMetrics(summary *stats.Summary, registry *prometheus.Registry
 			Help:      "Number of bytes that are consumed by the container",
 		},
 			[]string{
+				"node",
 				"pod",
 				"namespace",
 				"name",
@@ -166,6 +178,7 @@ func collectSummaryMetrics(summary *stats.Summary, registry *prometheus.Registry
 			Help:      "Number of bytes of Ephemeral storage that aren't consumed by the pod",
 		},
 			[]string{
+				"node",
 				"pod",
 				"namespace",
 			},
@@ -176,6 +189,7 @@ func collectSummaryMetrics(summary *stats.Summary, registry *prometheus.Registry
 			Help:      "Number of bytes of Ephemeral storage that can be consumed by the pod",
 		},
 			[]string{
+				"node",
 				"pod",
 				"namespace",
 			},
@@ -186,6 +200,7 @@ func collectSummaryMetrics(summary *stats.Summary, registry *prometheus.Registry
 			Help:      "Number of bytes of Ephemeral storage that are consumed by the pod",
 		},
 			[]string{
+				"node",
 				"pod",
 				"namespace",
 			},
@@ -196,6 +211,7 @@ func collectSummaryMetrics(summary *stats.Summary, registry *prometheus.Registry
 			Help:      "Number of available Inodes for pod Ephemeral storage",
 		},
 			[]string{
+				"node",
 				"pod",
 				"namespace",
 			},
@@ -206,6 +222,7 @@ func collectSummaryMetrics(summary *stats.Summary, registry *prometheus.Registry
 			Help:      "Number of Inodes for pod Ephemeral storage",
 		},
 			[]string{
+				"node",
 				"pod",
 				"namespace",
 			},
@@ -216,6 +233,7 @@ func collectSummaryMetrics(summary *stats.Summary, registry *prometheus.Registry
 			Help:      "Number of used Inodes for pod Ephemeral storage",
 		},
 			[]string{
+				"node",
 				"pod",
 				"namespace",
 			},
@@ -302,74 +320,74 @@ func collectSummaryMetrics(summary *stats.Summary, registry *prometheus.Registry
 		nodeRuntimeImageFSInodesUsed,
 	)
 
+	nodeName := summary.Node.NodeName
 	for _, pod := range summary.Pods {
 		for _, container := range pod.Containers {
 			if logs := container.Logs; logs != nil {
 				if inodesFree := logs.InodesFree; inodesFree != nil {
-					containerLogsInodesFree.WithLabelValues(pod.PodRef.Name, pod.PodRef.Namespace, container.Name).Set(float64(*inodesFree))
+					containerLogsInodesFree.WithLabelValues(nodeName, pod.PodRef.Name, pod.PodRef.Namespace, container.Name).Set(float64(*inodesFree))
 				}
 				if inodes := logs.Inodes; inodes != nil {
-					containerLogsInodes.WithLabelValues(pod.PodRef.Name, pod.PodRef.Namespace, container.Name).Set(float64(*inodes))
+					containerLogsInodes.WithLabelValues(nodeName, pod.PodRef.Name, pod.PodRef.Namespace, container.Name).Set(float64(*inodes))
 				}
 				if inodesUsed := logs.InodesUsed; inodesUsed != nil {
-					containerLogsInodesUsed.WithLabelValues(pod.PodRef.Name, pod.PodRef.Namespace, container.Name).Set(float64(*inodesUsed))
+					containerLogsInodesUsed.WithLabelValues(nodeName, pod.PodRef.Name, pod.PodRef.Namespace, container.Name).Set(float64(*inodesUsed))
 				}
 				if availableBytes := logs.AvailableBytes; availableBytes != nil {
-					containerLogsAvailableBytes.WithLabelValues(pod.PodRef.Name, pod.PodRef.Namespace, container.Name).Set(float64(*availableBytes))
+					containerLogsAvailableBytes.WithLabelValues(nodeName, pod.PodRef.Name, pod.PodRef.Namespace, container.Name).Set(float64(*availableBytes))
 				}
 				if capacityBytes := logs.CapacityBytes; capacityBytes != nil {
-					containerLogsCapacityBytes.WithLabelValues(pod.PodRef.Name, pod.PodRef.Namespace, container.Name).Set(float64(*capacityBytes))
+					containerLogsCapacityBytes.WithLabelValues(nodeName, pod.PodRef.Name, pod.PodRef.Namespace, container.Name).Set(float64(*capacityBytes))
 				}
 				if usedBytes := logs.UsedBytes; usedBytes != nil {
-					containerLogsUsedBytes.WithLabelValues(pod.PodRef.Name, pod.PodRef.Namespace, container.Name).Set(float64(*usedBytes))
+					containerLogsUsedBytes.WithLabelValues(nodeName, pod.PodRef.Name, pod.PodRef.Namespace, container.Name).Set(float64(*usedBytes))
 				}
 			}
 			if rootfs := container.Rootfs; rootfs != nil {
 				if inodesFree := rootfs.InodesFree; inodesFree != nil {
-					containerRootFsInodesFree.WithLabelValues(pod.PodRef.Name, pod.PodRef.Namespace, container.Name).Set(float64(*inodesFree))
+					containerRootFsInodesFree.WithLabelValues(nodeName, pod.PodRef.Name, pod.PodRef.Namespace, container.Name).Set(float64(*inodesFree))
 				}
 				if inodes := rootfs.Inodes; inodes != nil {
-					containerRootFsInodes.WithLabelValues(pod.PodRef.Name, pod.PodRef.Namespace, container.Name).Set(float64(*inodes))
+					containerRootFsInodes.WithLabelValues(nodeName, pod.PodRef.Name, pod.PodRef.Namespace, container.Name).Set(float64(*inodes))
 				}
 				if inodesUsed := rootfs.InodesUsed; inodesUsed != nil {
-					containerRootFsInodesUsed.WithLabelValues(pod.PodRef.Name, pod.PodRef.Namespace, container.Name).Set(float64(*inodesUsed))
+					containerRootFsInodesUsed.WithLabelValues(nodeName, pod.PodRef.Name, pod.PodRef.Namespace, container.Name).Set(float64(*inodesUsed))
 				}
 				if availableBytes := rootfs.AvailableBytes; availableBytes != nil {
-					containerRootFsAvailableBytes.WithLabelValues(pod.PodRef.Name, pod.PodRef.Namespace, container.Name).Set(float64(*availableBytes))
+					containerRootFsAvailableBytes.WithLabelValues(nodeName, pod.PodRef.Name, pod.PodRef.Namespace, container.Name).Set(float64(*availableBytes))
 				}
 				if capacityBytes := rootfs.CapacityBytes; capacityBytes != nil {
-					containerRootFsCapacityBytes.WithLabelValues(pod.PodRef.Name, pod.PodRef.Namespace, container.Name).Set(float64(*capacityBytes))
+					containerRootFsCapacityBytes.WithLabelValues(nodeName, pod.PodRef.Name, pod.PodRef.Namespace, container.Name).Set(float64(*capacityBytes))
 				}
 				if usedBytes := rootfs.UsedBytes; usedBytes != nil {
-					containerRootFsUsedBytes.WithLabelValues(pod.PodRef.Name, pod.PodRef.Namespace, container.Name).Set(float64(*usedBytes))
+					containerRootFsUsedBytes.WithLabelValues(nodeName, pod.PodRef.Name, pod.PodRef.Namespace, container.Name).Set(float64(*usedBytes))
 				}
 			}
 		}
 
 		if ephemeralStorage := pod.EphemeralStorage; ephemeralStorage != nil {
 			if ephemeralStorage.AvailableBytes != nil {
-				podEphemeralStorageAvailableBytes.WithLabelValues(pod.PodRef.Name, pod.PodRef.Namespace).Set(float64(*ephemeralStorage.AvailableBytes))
+				podEphemeralStorageAvailableBytes.WithLabelValues(nodeName, pod.PodRef.Name, pod.PodRef.Namespace).Set(float64(*ephemeralStorage.AvailableBytes))
 			}
 			if ephemeralStorage.CapacityBytes != nil {
-				podEphemeralStorageCapacityBytes.WithLabelValues(pod.PodRef.Name, pod.PodRef.Namespace).Set(float64(*ephemeralStorage.CapacityBytes))
+				podEphemeralStorageCapacityBytes.WithLabelValues(nodeName, pod.PodRef.Name, pod.PodRef.Namespace).Set(float64(*ephemeralStorage.CapacityBytes))
 			}
 			if ephemeralStorage.UsedBytes != nil {
-				podEphemeralStorageUsedBytes.WithLabelValues(pod.PodRef.Name, pod.PodRef.Namespace).Set(float64(*ephemeralStorage.UsedBytes))
+				podEphemeralStorageUsedBytes.WithLabelValues(nodeName, pod.PodRef.Name, pod.PodRef.Namespace).Set(float64(*ephemeralStorage.UsedBytes))
 			}
 			if ephemeralStorage.InodesFree != nil {
-				podEphemeralStorageInodesFree.WithLabelValues(pod.PodRef.Name, pod.PodRef.Namespace).Set(float64(*ephemeralStorage.InodesFree))
+				podEphemeralStorageInodesFree.WithLabelValues(nodeName, pod.PodRef.Name, pod.PodRef.Namespace).Set(float64(*ephemeralStorage.InodesFree))
 			}
 			if ephemeralStorage.Inodes != nil {
-				podEphemeralStorageInodes.WithLabelValues(pod.PodRef.Name, pod.PodRef.Namespace).Set(float64(*ephemeralStorage.Inodes))
+				podEphemeralStorageInodes.WithLabelValues(nodeName, pod.PodRef.Name, pod.PodRef.Namespace).Set(float64(*ephemeralStorage.Inodes))
 			}
 			if ephemeralStorage.InodesUsed != nil {
-				podEphemeralStorageInodesUsed.WithLabelValues(pod.PodRef.Name, pod.PodRef.Namespace).Set(float64(*ephemeralStorage.InodesUsed))
+				podEphemeralStorageInodesUsed.WithLabelValues(nodeName, pod.PodRef.Name, pod.PodRef.Namespace).Set(float64(*ephemeralStorage.InodesUsed))
 			}
 		}
 	}
 
 	if runtime := summary.Node.Runtime; runtime != nil {
-		nodeName := summary.Node.NodeName
 		if runtime.ImageFs.AvailableBytes != nil {
 			nodeRuntimeImageFSAvailableBytes.WithLabelValues(nodeName).Set(float64(*runtime.ImageFs.AvailableBytes))
 		}
