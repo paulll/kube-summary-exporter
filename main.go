@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"html"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"net/http"
 	"os"
 	"strconv"
@@ -388,7 +389,47 @@ func collectSummaryMetrics(summary *stats.Summary, registry *prometheus.Registry
 			nodeRuntimeImageFSInodesUsed.WithLabelValues(nodeName).Set(float64(*runtime.ImageFs.InodesUsed))
 		}
 	}
+}
 
+func allNodesHandler(w http.ResponseWriter, r *http.Request, kubeClient *kubernetes.Clientset) {
+	// If a timeout is configured via the Prometheus header, add it to the request.
+	if v := r.Header.Get("X-Prometheus-Scrape-Timeout-Seconds"); v != "" {
+		var err error
+		timeoutSeconds, err := strconv.ParseFloat(v, 64)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("Error parsing timeout from X-Prometheus-Scrape-Timeout-Seconds=%s: %v", html.EscapeString(v), err), http.StatusInternalServerError)
+			return
+		}
+		ctx, cancel := context.WithTimeout(r.Context(), time.Duration(timeoutSeconds*float64(time.Second)))
+		defer cancel()
+		r = r.WithContext(ctx)
+	}
+
+	nodes, err := kubeClient.CoreV1().Nodes().List(r.Context(), v1.ListOptions{})
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Error enumerating nodes: %v", err), http.StatusInternalServerError)
+	}
+
+	registry := prometheus.NewRegistry()
+
+	for _, node := range nodes.Items {
+		req := kubeClient.CoreV1().RESTClient().Get().Resource("nodes").Name(node.Name).SubResource("proxy").Suffix("stats/summary")
+		resp, err := req.DoRaw(r.Context())
+		if err != nil {
+			http.Error(w, fmt.Sprintf("Error querying /stats/summary for %s: %v", html.EscapeString(node.Name), err), http.StatusInternalServerError)
+			return
+		}
+
+		summary := &stats.Summary{}
+		if err := json.Unmarshal(resp, summary); err != nil {
+			http.Error(w, fmt.Sprintf("Error unmarshaling /stats/summary response for %s: %v", html.EscapeString(node.Name), err), http.StatusInternalServerError)
+			return
+		}
+		collectSummaryMetrics(summary, registry)
+	}
+
+	h := promhttp.HandlerFor(registry, promhttp.HandlerOpts{})
+	h.ServeHTTP(w, r)
 }
 
 // nodeHandler returns metrics for the /stats/summary API of the given node
@@ -468,6 +509,9 @@ func main() {
 	r := mux.NewRouter()
 	r.HandleFunc("/node/{node}", func(w http.ResponseWriter, r *http.Request) {
 		nodeHandler(w, r, kubeClient)
+	})
+	r.HandleFunc("/nodes", func(w http.ResponseWriter, r *http.Request) {
+		allNodesHandler(w, r, kubeClient)
 	})
 	r.Handle("/metrics", promhttp.Handler())
 	r.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
