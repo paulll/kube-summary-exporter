@@ -25,8 +25,13 @@ import (
 
 var metricsNamespace = "kube_summary"
 
+type PerNodeResult struct {
+	NodeName string
+	Summary  *stats.Summary
+}
+
 // collectSummaryMetrics collects metrics from a /stats/summary response
-func collectSummaryMetrics(summary *stats.Summary, registry *prometheus.Registry) {
+func collectSummaryMetrics(results []PerNodeResult, registry *prometheus.Registry) {
 	var (
 		containerLogsInodesFree = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 			Namespace: metricsNamespace,
@@ -320,91 +325,95 @@ func collectSummaryMetrics(summary *stats.Summary, registry *prometheus.Registry
 		nodeRuntimeImageFSInodesUsed,
 	)
 
-	nodeName := summary.Node.NodeName
-	for _, pod := range summary.Pods {
-		for _, container := range pod.Containers {
-			if logs := container.Logs; logs != nil {
-				if inodesFree := logs.InodesFree; inodesFree != nil {
-					containerLogsInodesFree.WithLabelValues(nodeName, pod.PodRef.Name, pod.PodRef.Namespace, container.Name).Set(float64(*inodesFree))
+	for _, entry := range results {
+		nodeName := entry.NodeName
+		summary := entry.Summary
+
+		for _, pod := range summary.Pods {
+			for _, container := range pod.Containers {
+				if logs := container.Logs; logs != nil {
+					if inodesFree := logs.InodesFree; inodesFree != nil {
+						containerLogsInodesFree.WithLabelValues(nodeName, pod.PodRef.Name, pod.PodRef.Namespace, container.Name).Set(float64(*inodesFree))
+					}
+					if inodes := logs.Inodes; inodes != nil {
+						containerLogsInodes.WithLabelValues(nodeName, pod.PodRef.Name, pod.PodRef.Namespace, container.Name).Set(float64(*inodes))
+					}
+					if inodesUsed := logs.InodesUsed; inodesUsed != nil {
+						containerLogsInodesUsed.WithLabelValues(nodeName, pod.PodRef.Name, pod.PodRef.Namespace, container.Name).Set(float64(*inodesUsed))
+					}
+					if availableBytes := logs.AvailableBytes; availableBytes != nil {
+						containerLogsAvailableBytes.WithLabelValues(nodeName, pod.PodRef.Name, pod.PodRef.Namespace, container.Name).Set(float64(*availableBytes))
+					}
+					if capacityBytes := logs.CapacityBytes; capacityBytes != nil {
+						containerLogsCapacityBytes.WithLabelValues(nodeName, pod.PodRef.Name, pod.PodRef.Namespace, container.Name).Set(float64(*capacityBytes))
+					}
+					if usedBytes := logs.UsedBytes; usedBytes != nil {
+						containerLogsUsedBytes.WithLabelValues(nodeName, pod.PodRef.Name, pod.PodRef.Namespace, container.Name).Set(float64(*usedBytes))
+					}
 				}
-				if inodes := logs.Inodes; inodes != nil {
-					containerLogsInodes.WithLabelValues(nodeName, pod.PodRef.Name, pod.PodRef.Namespace, container.Name).Set(float64(*inodes))
-				}
-				if inodesUsed := logs.InodesUsed; inodesUsed != nil {
-					containerLogsInodesUsed.WithLabelValues(nodeName, pod.PodRef.Name, pod.PodRef.Namespace, container.Name).Set(float64(*inodesUsed))
-				}
-				if availableBytes := logs.AvailableBytes; availableBytes != nil {
-					containerLogsAvailableBytes.WithLabelValues(nodeName, pod.PodRef.Name, pod.PodRef.Namespace, container.Name).Set(float64(*availableBytes))
-				}
-				if capacityBytes := logs.CapacityBytes; capacityBytes != nil {
-					containerLogsCapacityBytes.WithLabelValues(nodeName, pod.PodRef.Name, pod.PodRef.Namespace, container.Name).Set(float64(*capacityBytes))
-				}
-				if usedBytes := logs.UsedBytes; usedBytes != nil {
-					containerLogsUsedBytes.WithLabelValues(nodeName, pod.PodRef.Name, pod.PodRef.Namespace, container.Name).Set(float64(*usedBytes))
+				if rootfs := container.Rootfs; rootfs != nil {
+					if inodesFree := rootfs.InodesFree; inodesFree != nil {
+						containerRootFsInodesFree.WithLabelValues(nodeName, pod.PodRef.Name, pod.PodRef.Namespace, container.Name).Set(float64(*inodesFree))
+					}
+					if inodes := rootfs.Inodes; inodes != nil {
+						containerRootFsInodes.WithLabelValues(nodeName, pod.PodRef.Name, pod.PodRef.Namespace, container.Name).Set(float64(*inodes))
+					}
+					if inodesUsed := rootfs.InodesUsed; inodesUsed != nil {
+						containerRootFsInodesUsed.WithLabelValues(nodeName, pod.PodRef.Name, pod.PodRef.Namespace, container.Name).Set(float64(*inodesUsed))
+					}
+					if availableBytes := rootfs.AvailableBytes; availableBytes != nil {
+						containerRootFsAvailableBytes.WithLabelValues(nodeName, pod.PodRef.Name, pod.PodRef.Namespace, container.Name).Set(float64(*availableBytes))
+					}
+					if capacityBytes := rootfs.CapacityBytes; capacityBytes != nil {
+						containerRootFsCapacityBytes.WithLabelValues(nodeName, pod.PodRef.Name, pod.PodRef.Namespace, container.Name).Set(float64(*capacityBytes))
+					}
+					if usedBytes := rootfs.UsedBytes; usedBytes != nil {
+						containerRootFsUsedBytes.WithLabelValues(nodeName, pod.PodRef.Name, pod.PodRef.Namespace, container.Name).Set(float64(*usedBytes))
+					}
 				}
 			}
-			if rootfs := container.Rootfs; rootfs != nil {
-				if inodesFree := rootfs.InodesFree; inodesFree != nil {
-					containerRootFsInodesFree.WithLabelValues(nodeName, pod.PodRef.Name, pod.PodRef.Namespace, container.Name).Set(float64(*inodesFree))
+
+			if ephemeralStorage := pod.EphemeralStorage; ephemeralStorage != nil {
+				if ephemeralStorage.AvailableBytes != nil {
+					podEphemeralStorageAvailableBytes.WithLabelValues(nodeName, pod.PodRef.Name, pod.PodRef.Namespace).Set(float64(*ephemeralStorage.AvailableBytes))
 				}
-				if inodes := rootfs.Inodes; inodes != nil {
-					containerRootFsInodes.WithLabelValues(nodeName, pod.PodRef.Name, pod.PodRef.Namespace, container.Name).Set(float64(*inodes))
+				if ephemeralStorage.CapacityBytes != nil {
+					podEphemeralStorageCapacityBytes.WithLabelValues(nodeName, pod.PodRef.Name, pod.PodRef.Namespace).Set(float64(*ephemeralStorage.CapacityBytes))
 				}
-				if inodesUsed := rootfs.InodesUsed; inodesUsed != nil {
-					containerRootFsInodesUsed.WithLabelValues(nodeName, pod.PodRef.Name, pod.PodRef.Namespace, container.Name).Set(float64(*inodesUsed))
+				if ephemeralStorage.UsedBytes != nil {
+					podEphemeralStorageUsedBytes.WithLabelValues(nodeName, pod.PodRef.Name, pod.PodRef.Namespace).Set(float64(*ephemeralStorage.UsedBytes))
 				}
-				if availableBytes := rootfs.AvailableBytes; availableBytes != nil {
-					containerRootFsAvailableBytes.WithLabelValues(nodeName, pod.PodRef.Name, pod.PodRef.Namespace, container.Name).Set(float64(*availableBytes))
+				if ephemeralStorage.InodesFree != nil {
+					podEphemeralStorageInodesFree.WithLabelValues(nodeName, pod.PodRef.Name, pod.PodRef.Namespace).Set(float64(*ephemeralStorage.InodesFree))
 				}
-				if capacityBytes := rootfs.CapacityBytes; capacityBytes != nil {
-					containerRootFsCapacityBytes.WithLabelValues(nodeName, pod.PodRef.Name, pod.PodRef.Namespace, container.Name).Set(float64(*capacityBytes))
+				if ephemeralStorage.Inodes != nil {
+					podEphemeralStorageInodes.WithLabelValues(nodeName, pod.PodRef.Name, pod.PodRef.Namespace).Set(float64(*ephemeralStorage.Inodes))
 				}
-				if usedBytes := rootfs.UsedBytes; usedBytes != nil {
-					containerRootFsUsedBytes.WithLabelValues(nodeName, pod.PodRef.Name, pod.PodRef.Namespace, container.Name).Set(float64(*usedBytes))
+				if ephemeralStorage.InodesUsed != nil {
+					podEphemeralStorageInodesUsed.WithLabelValues(nodeName, pod.PodRef.Name, pod.PodRef.Namespace).Set(float64(*ephemeralStorage.InodesUsed))
 				}
 			}
 		}
 
-		if ephemeralStorage := pod.EphemeralStorage; ephemeralStorage != nil {
-			if ephemeralStorage.AvailableBytes != nil {
-				podEphemeralStorageAvailableBytes.WithLabelValues(nodeName, pod.PodRef.Name, pod.PodRef.Namespace).Set(float64(*ephemeralStorage.AvailableBytes))
+		if runtime := summary.Node.Runtime; runtime != nil {
+			if runtime.ImageFs.AvailableBytes != nil {
+				nodeRuntimeImageFSAvailableBytes.WithLabelValues(nodeName).Set(float64(*runtime.ImageFs.AvailableBytes))
 			}
-			if ephemeralStorage.CapacityBytes != nil {
-				podEphemeralStorageCapacityBytes.WithLabelValues(nodeName, pod.PodRef.Name, pod.PodRef.Namespace).Set(float64(*ephemeralStorage.CapacityBytes))
+			if runtime.ImageFs.CapacityBytes != nil {
+				nodeRuntimeImageFSCapacityBytes.WithLabelValues(nodeName).Set(float64(*runtime.ImageFs.CapacityBytes))
 			}
-			if ephemeralStorage.UsedBytes != nil {
-				podEphemeralStorageUsedBytes.WithLabelValues(nodeName, pod.PodRef.Name, pod.PodRef.Namespace).Set(float64(*ephemeralStorage.UsedBytes))
+			if runtime.ImageFs.UsedBytes != nil {
+				nodeRuntimeImageFSUsedBytes.WithLabelValues(nodeName).Set(float64(*runtime.ImageFs.UsedBytes))
 			}
-			if ephemeralStorage.InodesFree != nil {
-				podEphemeralStorageInodesFree.WithLabelValues(nodeName, pod.PodRef.Name, pod.PodRef.Namespace).Set(float64(*ephemeralStorage.InodesFree))
+			if runtime.ImageFs.InodesFree != nil {
+				nodeRuntimeImageFSInodesFree.WithLabelValues(nodeName).Set(float64(*runtime.ImageFs.InodesFree))
 			}
-			if ephemeralStorage.Inodes != nil {
-				podEphemeralStorageInodes.WithLabelValues(nodeName, pod.PodRef.Name, pod.PodRef.Namespace).Set(float64(*ephemeralStorage.Inodes))
+			if runtime.ImageFs.Inodes != nil {
+				nodeRuntimeImageFSInodes.WithLabelValues(nodeName).Set(float64(*runtime.ImageFs.Inodes))
 			}
-			if ephemeralStorage.InodesUsed != nil {
-				podEphemeralStorageInodesUsed.WithLabelValues(nodeName, pod.PodRef.Name, pod.PodRef.Namespace).Set(float64(*ephemeralStorage.InodesUsed))
+			if runtime.ImageFs.InodesUsed != nil {
+				nodeRuntimeImageFSInodesUsed.WithLabelValues(nodeName).Set(float64(*runtime.ImageFs.InodesUsed))
 			}
-		}
-	}
-
-	if runtime := summary.Node.Runtime; runtime != nil {
-		if runtime.ImageFs.AvailableBytes != nil {
-			nodeRuntimeImageFSAvailableBytes.WithLabelValues(nodeName).Set(float64(*runtime.ImageFs.AvailableBytes))
-		}
-		if runtime.ImageFs.CapacityBytes != nil {
-			nodeRuntimeImageFSCapacityBytes.WithLabelValues(nodeName).Set(float64(*runtime.ImageFs.CapacityBytes))
-		}
-		if runtime.ImageFs.UsedBytes != nil {
-			nodeRuntimeImageFSUsedBytes.WithLabelValues(nodeName).Set(float64(*runtime.ImageFs.UsedBytes))
-		}
-		if runtime.ImageFs.InodesFree != nil {
-			nodeRuntimeImageFSInodesFree.WithLabelValues(nodeName).Set(float64(*runtime.ImageFs.InodesFree))
-		}
-		if runtime.ImageFs.Inodes != nil {
-			nodeRuntimeImageFSInodes.WithLabelValues(nodeName).Set(float64(*runtime.ImageFs.Inodes))
-		}
-		if runtime.ImageFs.InodesUsed != nil {
-			nodeRuntimeImageFSInodesUsed.WithLabelValues(nodeName).Set(float64(*runtime.ImageFs.InodesUsed))
 		}
 	}
 }
@@ -428,8 +437,7 @@ func allNodesHandler(w http.ResponseWriter, r *http.Request, kubeClient *kuberne
 		http.Error(w, fmt.Sprintf("Error enumerating nodes: %v", err), http.StatusInternalServerError)
 	}
 
-	registry := prometheus.NewRegistry()
-
+	var statsCollection []PerNodeResult
 	for _, node := range nodes.Items {
 		req := kubeClient.CoreV1().RESTClient().Get().Resource("nodes").Name(node.Name).SubResource("proxy").Suffix("stats/summary")
 		resp, err := req.DoRaw(r.Context())
@@ -443,47 +451,15 @@ func allNodesHandler(w http.ResponseWriter, r *http.Request, kubeClient *kuberne
 			http.Error(w, fmt.Sprintf("Error unmarshaling /stats/summary response for %s: %v", html.EscapeString(node.Name), err), http.StatusInternalServerError)
 			return
 		}
-		collectSummaryMetrics(summary, registry)
-	}
 
-	h := promhttp.HandlerFor(registry, promhttp.HandlerOpts{})
-	h.ServeHTTP(w, r)
-}
-
-// nodeHandler returns metrics for the /stats/summary API of the given node
-func nodeHandler(w http.ResponseWriter, r *http.Request, kubeClient *kubernetes.Clientset) {
-	node := mux.Vars(r)["node"]
-
-	// If a timeout is configured via the Prometheus header, add it to the request.
-	if v := r.Header.Get("X-Prometheus-Scrape-Timeout-Seconds"); v != "" {
-		var err error
-		timeoutSeconds, err := strconv.ParseFloat(v, 64)
-		if err != nil {
-			http.Error(w, fmt.Sprintf("Error parsing timeout from X-Prometheus-Scrape-Timeout-Seconds=%s: %v", html.EscapeString(v), err), http.StatusInternalServerError)
-			return
-		}
-		ctx, cancel := context.WithTimeout(r.Context(), time.Duration(timeoutSeconds*float64(time.Second)))
-		defer cancel()
-		r = r.WithContext(ctx)
-	}
-
-	req := kubeClient.CoreV1().RESTClient().Get().Resource("nodes").Name(node).SubResource("proxy").Suffix("stats/summary")
-	resp, err := req.DoRaw(r.Context())
-	if err != nil {
-		http.Error(w, fmt.Sprintf("Error querying /stats/summary for %s: %v", html.EscapeString(node), err), http.StatusInternalServerError)
-		return
-	}
-
-	summary := &stats.Summary{}
-	if err := json.Unmarshal(resp, summary); err != nil {
-		http.Error(w, fmt.Sprintf("Error unmarshaling /stats/summary response for %s: %v", html.EscapeString(node), err), http.StatusInternalServerError)
-		return
+		statsCollection = append(statsCollection, PerNodeResult{
+			NodeName: summary.Node.NodeName,
+			Summary:  summary,
+		})
 	}
 
 	registry := prometheus.NewRegistry()
-
-	collectSummaryMetrics(summary, registry)
-
+	collectSummaryMetrics(statsCollection, registry)
 	h := promhttp.HandlerFor(registry, promhttp.HandlerOpts{})
 	h.ServeHTTP(w, r)
 }
@@ -525,9 +501,6 @@ func main() {
 	}
 
 	r := mux.NewRouter()
-	r.HandleFunc("/node/{node}", func(w http.ResponseWriter, r *http.Request) {
-		nodeHandler(w, r, kubeClient)
-	})
 	r.HandleFunc("/nodes", func(w http.ResponseWriter, r *http.Request) {
 		allNodesHandler(w, r, kubeClient)
 	})
